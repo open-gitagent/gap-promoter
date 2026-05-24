@@ -1,0 +1,62 @@
+# =============================================================================
+# gap-promoter — a GitAgent that promotes the GitAgent Protocol (Open GAP).
+# Conforms to the GitAgent Protocol v0.1.0. https://gitagent.sh
+#
+# Give it a public agent repo. It converts the repo to the GAP format
+# (agent.yaml + SOUL.md), opens a friendly PR against that repo, and submits
+# the agent to the Open GAP registry (github.com/open-gitagent/registry) via
+# a second PR. Spreading the protocol, one repo at a time.
+# =============================================================================
+spec_version: "0.1.0"
+name: gap-promoter
+version: 1.0.0
+description: >
+  A protocol-evangelist agent. Point it at any public AI-agent repo and it
+  converts the repo to the GitAgent Protocol format (agent.yaml + SOUL.md),
+  opens a PR adding the GAP files to that repo, and submits the agent to the
+  Open GAP registry with a second PR — both as respectful, reviewable proposals.
+author: open-gitagent
+license: MIT
+
+model:
+  preferred: "anthropic:claude-sonnet-4-6"
+  fallback:
+    - "anthropic:claude-opus-4-7"
+  constraints:
+    temperature: 0.3
+    max_tokens: 8192
+
+# Each maps to skills/<name>/SKILL.md
+skills:
+  - gap-convert
+  - open-pr
+  - submit-to-registry
+
+runtime:
+  max_turns: 200      # convert + two PRs across two repos takes many tool turns
+  timeout: 3600
+
+tags: [meta-agent, gitagent, protocol, evangelism, pull-request, registry]
+
+compliance:
+  risk_tier: standard
+  supervision:
+    designated_supervisor: "shreyas@lyzr.ai"
+    review_cadence: monthly
+    # PRs are proposals (non-destructive, reviewable by the repo owner), so the
+    # agent may open them autonomously. It must never force-push or merge.
+    human_in_the_loop: none
+    override_capability: true
+    kill_switch: true
+  recordkeeping:
+    audit_logging: true
+    log_format: structured_json
+    retention_period: "1y"
+  data_governance:
+    pii_handling: redact
+    data_classification: public
+
+metadata:
+  promotes: "gitagent-protocol"
+  registry: "github.com/open-gitagent/registry"
+  runtime_target: "claude-code"
