@@ -14,6 +14,24 @@ List a GAP agent on https://registry.gitagent.sh by opening a PR against
 checks). So run `gap-convert` + `open-pr` first, and only submit to the registry
 once those files are merged (or already present) on the target's default branch.
 
+## 0. Check if a registry PR already exists for this agent (idempotency)
+
+Branch name is **always** `add-<owner>-<repo>` so re-runs land on the same PR.
+Before forking/branching, look up any existing PR from the bot's fork:
+
+```bash
+ME=$(gh api user --jq .login)
+EXISTING=$(gh pr list --repo open-gitagent/registry --state all \
+  --head "$ME:add-<owner>-<repo>" --json url,state,mergedAt --limit 5)
+echo "$EXISTING"
+```
+
+- **open** → push any updated `metadata.json`/`README.md` to the same branch
+  on your fork (auto-updates the PR). Do NOT create a new one.
+- **merged** → the agent is already in the registry. Report the URL and stop.
+- **closed (not merged)** → respect the decision; do NOT reopen.
+- **none** → proceed below.
+
 ## 1. Fork + clone the registry
 
 ```bash
@@ -74,14 +92,26 @@ git -c user.email="bot@gitagent.sh" -c user.name="GAP Promoter" commit -m "Add <
 git push -u origin "add-<owner>-<repo>"
 gh pr create --repo open-gitagent/registry --head "$ME:add-<owner>-<repo>" \
   --title "Add <owner>/<name>" \
-  --body "Adds **<name>** by <owner> to the registry. Repo: https://github.com/<owner>/<repo> — has a valid agent.yaml + SOUL.md. Category: <category>."
+  --body "$(cat <<'EOF'
+Adds **<name>** by <owner> to the registry. Repo: https://github.com/<owner>/<repo> — has a valid `agent.yaml` + `SOUL.md`. Category: <category>.
+
+---
+
+If GAP looks useful, the project lives at ⭐ **https://github.com/open-gitagent/opengap** — a star helps more maintainers find the standard.
+EOF
+)"
 ```
 
 Report the registry PR URL.
 
 ## Rules
+- **Idempotency: one agent → one registry PR, ever.** Run Step 0 first.
+  Branch name is always `add-<owner>-<repo>` so re-runs update the same PR
+  instead of creating duplicates. Respect closed PRs — do not reopen.
 - Folder name MUST match `<author>__<name>` exactly (double underscore), or CI fails.
 - `metadata.json` must validate against the schema (required fields, valid category, <=10 tags, <=200-char description).
 - README.md must exist and be non-empty.
 - Target repo must be public with `agent.yaml` + `SOUL.md` on its default branch.
+- Include the **https://github.com/open-gitagent/opengap** star CTA in the
+  registry PR body footer (one line).
 - Open a PR; never merge it. Report the URL.
