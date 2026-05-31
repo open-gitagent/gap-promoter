@@ -9,32 +9,48 @@ allowed-tools: "Bash, Read, Write"
 Propose the GAP files to the target repo as a PR. `gh` is authenticated from
 `$GH_TOKEN`. Everything here is a proposal — never force-push, never merge.
 
-## 0. Check if a GAP PR already exists (idempotency — do NOT re-open)
+## 0. Pre-flight: the eligibility gate must have returned PROCEED
 
-The branch name is **always** `gitagent-protocol` so the bot lands on the same
-PR each run. Before doing anything else, look for an existing PR from this bot's
-fork to the target — and respect whatever state it's in:
+If you reached this skill without running `gap-eligibility` and getting a
+**PROCEED**, stop and run the gate now. If it returned DISCUSS or DECLINE, do
+NOT open a PR. This skill assumes the gate already cleared the repo.
+
+## 0b. Check if a GAP PR already exists (idempotency — do NOT re-open)
+
+Check for an existing GAP PR from **anyone**, not just this bot's fork. The old
+check only looked at our own `gitagent-protocol` branch and missed PRs opened by
+other contributors (or our own under a different branch). Check all three:
 
 ```bash
 ME=$(gh api user --jq .login)
-EXISTING=$(gh pr list --repo <owner>/<repo> --state all \
-  --head "$ME:gitagent-protocol" --json url,state,title,mergedAt --limit 5)
-echo "$EXISTING"
+
+# (a) Our fixed-branch PR
+gh pr list --repo <owner>/<repo> --state all \
+  --head "$ME:gitagent-protocol" --json url,state,title,mergedAt --limit 5
+
+# (b) ANY PR (any author / branch) whose title smells like a GAP adoption PR
+gh pr list --repo <owner>/<repo> --state all --limit 100 \
+  --json url,state,title,headRefName | python3 -c "import json,sys; \
+[print(p['state'], p['url'], p['title']) for p in json.load(sys.stdin) \
+ if any(k in (p['title'] or '').lower() for k in ['gitagent','agent.yaml','soul.md','gap support','gap manifest'])]" 2>/dev/null
+
+# (c) Search PRs by title across all states
+gh search prs --repo <owner>/<repo> "GitAgent Protocol" --state all --limit 10 2>/dev/null || true
 ```
 
-Decide based on state:
+Decide based on state (a hit in (b) or (c) counts the same as our own PR):
 - **open** → A GAP PR is already waiting on the maintainer. **Do NOT create a
-  new one.** If your locally-generated `agent.yaml`/`SOUL.md` differ from what's
-  on the existing branch, push the updates to the same `gitagent-protocol` branch
-  on your fork — GitHub auto-updates the open PR. Then report that URL and stop.
+  new one.** If it's ours and our locally-generated files differ, push the
+  updates to the same `gitagent-protocol` branch on our fork — GitHub
+  auto-updates the open PR. If it's someone else's, report it and stop.
 - **merged** → GAP files are already upstream. Skip this skill and go straight
   to the `submit-to-registry` step. Report the merged PR URL for context.
-- **closed (not merged)** → The maintainer declined or moved on. **Do NOT
-  reopen or open a fresh one.** Report the closed URL and stop; the user can
-  re-engage manually if they want.
-- **none** (no existing PR) → proceed with the steps below.
+- **closed (not merged)** → The maintainer declined or moved on (ours or
+  anyone's). **Do NOT reopen or open a fresh one.** Report the closed URL and
+  stop; the user can re-engage manually if they want.
+- **none** (no existing GAP PR anywhere) → proceed with the steps below.
 
-This check is mandatory — one target repo, one GAP PR, ever.
+This check is mandatory — one target repo, one GAP PR, ever, from anyone.
 
 ## 1. Confirm auth
 
