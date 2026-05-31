@@ -10,6 +10,13 @@ Turn an existing agent repo into a GAP-conformant one by adding two files at the
 repo root: `agent.yaml` and `SOUL.md`. See `knowledge/gap-spec.md` for the full
 field reference.
 
+> **Pre-req: run `gap-eligibility` first.** Do not convert a repo until the gate
+> returns **PROCEED**. If it returned DISCUSS or DECLINE, there's nothing to
+> convert — open a Discussion or stop. In particular: if the repo already manages
+> its agent identity somewhere (e.g. `src/<proj>/identity/SOUL.md` loaded at
+> runtime), a root `SOUL.md` would create drift — that's a DECLINE, not a
+> conversion.
+
 ## 1. Understand the repo
 
 Clone and read it. Identify:
